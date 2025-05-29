@@ -1,8 +1,6 @@
 package com.lvt4j.socketproxy;
 
-import static java.nio.channels.SelectionKey.OP_READ;
-import static java.nio.channels.SelectionKey.OP_WRITE;
-import static java.util.Collections.synchronizedList;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -17,108 +15,113 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import lombok.extern.slf4j.Slf4j;
+import static java.nio.channels.SelectionKey.OP_READ;
+import static java.nio.channels.SelectionKey.OP_WRITE;
+import static java.util.Collections.synchronizedList;
 
 /**
- *
  * @author LV on 2022年4月2日
  */
 @Slf4j
 public class ChannelTransmitter extends Thread implements UncaughtExceptionHandler {
 
     private Selector selector;
-    
-    /** 待注册队列 */
-    private List<Runnable> registerQueue = synchronizedList(new LinkedList<>());
-    
+
+    /**
+     * 待注册队列
+     */
+    private final List<Runnable> registerQueue = synchronizedList(new LinkedList<>());
+
     public ChannelTransmitter(String name) throws IOException {
         super(name);
         setDefaultUncaughtExceptionHandler(this);
         selector = Selector.open();
         start();
     }
+
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        if(e instanceof ClosedSelectorException) return;
+        if (e instanceof ClosedSelectorException) return;
         log.error("channel trans err", e);
     }
-    
+
     public void transmit(SocketChannel from, SocketChannel to, int buffSize,
-            Runnable onTrans, Consumer<Exception> exHandler) {
-        registerQueue.add(()->{
+                         Runnable onTrans, Consumer<Exception> exHandler) {
+        registerQueue.add(() -> {
             Arrow arrow = new Arrow();
             arrow.from = from;
             arrow.to = to;
             arrow.buf = ByteBuffer.allocate(buffSize);
             arrow.onTrans = onTrans;
             arrow.exHandler = exHandler;
-            
-            try{
+
+            try {
                 from.register(selector, OP_READ, arrow);
-            }catch(Exception e){
+            } catch (Exception e) {
                 exHandler.accept(e);
             }
         });
         selector.wakeup();
     }
-    
+
     @Override
     public void run() {
-        try{
-            while(selector.isOpen()){
+        try {
+            while (selector.isOpen()) {
                 selector.select();
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-                while(!registerQueue.isEmpty()) registerQueue.remove(0).run();
-                if(!selector.isOpen()) return;
-                while(keys.hasNext()){
+                while (!registerQueue.isEmpty()) registerQueue.remove(0).run();
+                if (!selector.isOpen()) return;
+                while (keys.hasNext()) {
                     SelectionKey key = keys.next();
                     keys.remove();
                     trans(key);
                 }
             }
-        }catch(Throwable e){
+        } catch (Throwable e) {
             uncaughtException(this, e);
         }
     }
+
     private void trans(SelectionKey key) {
         Arrow arrow = (Arrow) key.attachment();
-        try{
-            if(key.isReadable()){
+        try {
+            if (key.isReadable()) {
                 int size = arrow.from.read(arrow.buf);
-                if(size>0){
+                if (size > 0) {
                     arrow.onTrans.run();
                     arrow.buf.flip();
                     key.cancel();
                     arrow.to.register(selector, OP_WRITE, arrow);
-                }else if(size==-1){
+                } else if (size == -1) {
                     key.cancel();
                     arrow.exHandler.accept(new EOFException());
                 }
-            }else if(key.isWritable()){
+            } else if (key.isWritable()) {
                 int size = arrow.to.write(arrow.buf);
-                if(size>0){
+                if (size > 0) {
                     arrow.onTrans.run();
                 }
-                if(!arrow.buf.hasRemaining()){
+                if (!arrow.buf.hasRemaining()) {
                     arrow.buf.clear();
                     key.cancel();
                     arrow.from.register(selector, OP_READ, arrow);
                 }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             arrow.exHandler.accept(e);
         }
     }
-    
+
     public void destory() {
-        try{
+        try {
             selector.close();
             join(100);
-        }catch(Exception e){
+        } catch (Exception e) {
             log.error("channel trans close err", e);
         }
     }
-    
+
     private class Arrow {
         private SocketChannel from;
         private SocketChannel to;

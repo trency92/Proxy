@@ -1,4 +1,5 @@
 # 基本用法
+
 socks5是最常见的代理协议之一了，本项目也实现了socks5的一些基本feature，但：
 
 * 仅socks5版本
@@ -12,12 +13,14 @@ socks5是最常见的代理协议之一了，本项目也实现了socks5的一�
 则`A`可以配置使用`C`上的代理服务，来访问`B:8080`
 
 配置代码例
+
 ```
 socks5:
 - 1080
 ```
 
 ## chrome使用代理
+
 chrome要使用代理需要安装代理类插件，如[Proxy SwitchyOmega](https://chrome.google.com/webstore/detail/proxy-switchyomega/padekgcemlokbadohgkifijomclgjgif?hl=zh)
 
 安装完插件后，配置一个走`C`机器`1080`端口的`socks5`协议的Proxy profile

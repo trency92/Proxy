@@ -45,7 +45,7 @@ socks5:
 #- 1080
 
 http:
-#- 80
+  - 8002
 
 intranet:
 #- type: entry
@@ -57,3 +57,4 @@ intranet:
 
 pws:
 #- 80
+

@@ -1,26 +1,22 @@
 package com.lvt4j.socketproxy;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import com.lvt4j.socketproxy.ProxyApp.IOExceptionRunnable;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import org.springframework.stereotype.Service;
-
-import com.lvt4j.socketproxy.ProxyApp.IOExceptionRunnable;
-
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
- *
  * @author LV on 2022年4月6日
  */
 @Slf4j
@@ -28,18 +24,20 @@ import lombok.extern.slf4j.Slf4j;
 public class DelayRunner extends Thread implements UncaughtExceptionHandler {
 
     private DelayQueue<DelayMeta> queue = new DelayQueue<>();
-    
+
     private volatile boolean destory;
-    
+
     @PostConstruct
     public void init() {
         init("DelayRunner");
     }
+
     public void init(String name) {
         setName(name);
         setUncaughtExceptionHandler(this);
         start();
     }
+
     @PreDestroy
     @SneakyThrows
     public void destory() {
@@ -47,41 +45,41 @@ public class DelayRunner extends Thread implements UncaughtExceptionHandler {
         interrupt();
         join();
     }
-    
+
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        if(e instanceof InterruptedException) return;
+        if (e instanceof InterruptedException) return;
         log.error("delay runner err", e);
     }
-    
+
     public Delayed run(long delayed, IOExceptionRunnable run, Consumer<Exception> exHandler) {
         DelayMeta meta = new DelayMeta(delayed, run, exHandler);
         queue.put(meta);
         return meta;
     }
-    
+
     public boolean cancel(Delayed delayed) {
-        if(delayed==null) return false;
+        if (delayed == null) return false;
         return queue.remove(delayed);
     }
-    
+
     @Override
     public void run() {
-        while(!destory){
+        while (!destory) {
             DelayMeta meta;
-            try{
+            try {
                 meta = queue.take();
-            }catch(InterruptedException e){
+            } catch (InterruptedException e) {
                 continue;
             }
-            try{
+            try {
                 meta.run.run();
-            }catch(Exception e){
+            } catch (Exception e) {
                 meta.exHandler.accept(e);
             }
         }
     }
-    
+
     @RequiredArgsConstructor
     private class DelayMeta implements Delayed {
 
@@ -97,7 +95,7 @@ public class DelayRunner extends Thread implements UncaughtExceptionHandler {
 
         @Override
         public long getDelay(TimeUnit unit) {
-            long delay = createTime+delayMs-System.currentTimeMillis();
+            long delay = createTime + delayMs - System.currentTimeMillis();
             return unit.convert(delay, MILLISECONDS);
         }
 

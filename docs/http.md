@@ -1,4 +1,5 @@
 # 基本用法
+
 http是常见的代理协议之一，本项目实现了http代理的基本功能，但：
 
 * 仅支持无身份认证
@@ -10,6 +11,7 @@ http是常见的代理协议之一，本项目实现了http代理的基本功能
 则`A`可以配置使用`C`上的代理服务，来访问`B:443`
 
 配置代码例
+
 ```
 http:
 - 80
@@ -18,6 +20,7 @@ http:
 > http代理，仅是指客户端和代理服务器之间建立连接时进行的握手消息，借用了http协议的格式，并不是说http代理仅支持代理http协议的消息。https，ssh等各种基于tcp的应用层协议都是支持的
 
 ## chrome使用代理
+
 chrome要使用代理需要安装代理类插件，如[Proxy SwitchyOmega](https://chrome.google.com/webstore/detail/proxy-switchyomega/padekgcemlokbadohgkifijomclgjgif?hl=zh)
 
 安装完插件后，配置一个走`C`机器`80`端口的`http`协议的Proxy profile
